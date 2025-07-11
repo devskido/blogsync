@@ -16,11 +16,7 @@
   },
   "crons": [
     {
-      "path": "/api/cron/analytics",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup",
+      "path": "/api/cron/daily",
       "schedule": "0 2 * * *"
     }
   ]

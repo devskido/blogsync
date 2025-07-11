@@ -4,9 +4,6 @@
   "devCommand": "next dev",
   "installCommand": "npm install",
   "env": {
-    "DATABASE_URL": "@database_url",
-    "POSTGRES_PRISMA_URL": "@postgres_prisma_url",
-    "POSTGRES_URL_NON_POOLING": "@postgres_url_non_pooling",
     "JWT_SECRET": "@jwt_secret",
     "JWT_REFRESH_SECRET": "@jwt_refresh_secret",
     "GEMINI_API_KEY": "@gemini_api_key",

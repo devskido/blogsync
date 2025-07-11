@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  password        String
+  isActive        Boolean   @default(true)
+  emailVerified   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  contents        Content[]
+  platforms       PlatformCredential[]
+  tokens          Token[]
+  publishingJobs  PublishingJob[]
+  
+  @@index([email])
+}
+
+model Token {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  type         String   // refresh, passwordReset, emailVerification
+  expiresAt    DateTime
+  used         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+  @@index([userId])
+}
+
+model Content {
+  id              String    @id @default(cuid())
+  title           String
+  body            String    @db.Text
+  excerpt         String?   @db.Text
+  status          String    @default("draft") // draft, published, scheduled
+  tags            String[]
+  metadata        Json?
+  scheduledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  versions        ContentVersion[]
+  publishingJobs  PublishingJob[]
+  optimizations   ContentOptimization[]
+  analytics       ContentAnalytics[]
+  media           Media[]
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model ContentVersion {
+  id          String    @id @default(cuid())
+  version     Int
+  title       String
+  body        String    @db.Text
+  excerpt     String?   @db.Text
+  tags        String[]
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  
+  contentId   String
+  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  @@unique([contentId, version])
+  @@index([contentId])
+}
+
+model Platform {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  type        String    // wordpress, medium, devto, hashnode, linkedin
+  features    String[]
+  isActive    Boolean   @default(true)
+  config      Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  credentials PlatformCredential[]
+  jobs        PublishingJob[]
+  
+  @@index([type])
+}
+
+model PlatformCredential {
+  id                String    @id @default(cuid())
+  name              String
+  credentials       String    // Encrypted JSON
+  settings          Json?
+  isActive          Boolean   @default(true)
+  lastTestedAt      DateTime?
+  lastTestSuccess   Boolean?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  platformId        String
+  platform          Platform  @relation(fields: [platformId], references: [id])
+  
+  publishingJobs    PublishingJob[]
+  
+  @@unique([userId, platformId, name])
+  @@index([userId])
+  @@index([platformId])
+}
+
+model PublishingJob {
+  id              String    @id @default(cuid())
+  status          String    // pending, processing, completed, failed
+  publishedUrl    String?
+  publishedId     String?
+  error           String?   @db.Text
+  attempts        Int       @default(0)
+  metadata        Json?
+  scheduledFor    DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  contentId       String
+  content         Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  platformId      String
+  platform        Platform  @relation(fields: [platformId], references: [id])
+  
+  credentialId    String
+  credential      PlatformCredential @relation(fields: [credentialId], references: [id])
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([contentId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+model ContentOptimization {
+  id                  String    @id @default(cuid())
+  platformType        String
+  optimizedContent    Json
+  seoMetadata         Json?
+  usageTokens         Int       @default(0)
+  cacheKey            String?   @unique
+  createdAt           DateTime  @default(now())
+  
+  contentId           String
+  content             Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  @@index([contentId])
+  @@index([platformType])
+  @@index([cacheKey])
+}
+
+model ContentAnalytics {
+  id              String    @id @default(cuid())
+  views           Int       @default(0)
+  reads           Int       @default(0)
+  likes           Int       @default(0)
+  comments        Int       @default(0)
+  shares          Int       @default(0)
+  platformData    Json?
+  recordedAt      DateTime  @default(now())
+  
+  contentId       String
+  content         Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  platformId      String
+  
+  @@index([contentId])
+  @@index([platformId])
+  @@index([recordedAt])
+}
+
+model Media {
+  id          String    @id @default(cuid())
+  filename    String
+  mimeType    String
+  size        Int
+  url         String
+  thumbnailUrl String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  
+  contentId   String?
+  content     Content?  @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  
+  @@index([contentId])
+}
+
+model TokenUsage {
+  id          String    @id @default(cuid())
+  service     String    // gemini, openai, etc.
+  operation   String
+  tokens      Int
+  cost        Float?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  
+  @@index([service])
+  @@index([createdAt])
+}
